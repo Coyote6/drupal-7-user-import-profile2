@@ -1,0 +1,105 @@
+<?php
+
+/**
+ * Implements hook_user_import_form_field_match().
+ */
+function user_import_profile2_user_import_form_field_match() {
+
+  $options = [];
+  $options['profile2'] = [];
+  $field_options = [];
+  $supported_field_types = field_user_import_supported_fields();
+  $fields_info = field_info_instances('profile2');
+
+  foreach ($fields_info as $bundle => $fields) {
+    foreach ($fields as $field_name => $field_data) {
+      
+      $field_info = field_info_field($field_name);
+      $type = $field_info['type'];
+
+      if (isset($supported_field_types[$type])) {
+        $options['profile2'][$field_name] = $field_data['label'];
+      }
+      else {
+        drupal_set_message(t('Field %field is not supported', array('%field' => $field_data['label'])), 'warning');
+      }
+      
+    }
+  }
+
+  return $options;
+}
+
+
+/**
+ * Implements hook_user_import_data().
+ */
+function user_import_profile2_user_import_data($settings, $update_setting, $column_settings, $module, $field_id, $data, $column_id) {
+  if ($module !=  'profile2') {
+    return;
+  }
+  return trim(utf8_encode($data[$column_id]));
+}
+
+
+/**
+ * Implements hook_user_import_after_save().
+ */
+function user_import_profile2_user_import_after_save ($settings, $account, $password, $fields, $updated, $update_setting_per_module) {
+  
+  $profile_type = $settings['profile_type'];
+
+  $profile = profile2_create(array('type' => $profile_type, 'uid' => $account->uid));
+  $lang = LANGUAGE_NONE;
+  foreach ($fields['profile2'] as $keyfield => $valuefield) {
+    $profile->$keyfield = array($lang => array(0 => array('value' => utf8_encode($valuefield[0]))));
+  }
+  $form_state = [];
+  $form_state['values'] = [];
+  $form_state['values']['profile_main'] = [];
+  $form = [];
+  $form['#parents'] = [];
+  field_attach_submit('profile2', $profile, $form, $form_state); // attach $profile to profile2 submit
+  //Saves the Profile2 profile.
+  profile2_save($profile);
+
+  return;
+}
+
+
+/**
+ * Implements hook_user_import_form_fieldset().
+ *
+ * Add fieldsets to an import settings form.
+ */
+function user_import_profile2_user_import_form_fieldset ($import, $collapsed) {
+
+  $profiles = profile2_get_types();
+  foreach ($profiles as $name => $profile) {
+    if (is_callable ([$profile, 'defaultLabel'])) {
+      $profiles_options[$name] = $profile->defaultLabel();
+    }
+    else {
+      $profiles_options[$name] = $profile->label;
+    }
+  }
+
+  $form['profile2'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Profile2'),
+    '#weight' => -80,
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  ];
+
+  $form['profile2']['profile_type'] = [
+    '#type'=> 'select',
+    '#title' => t('Profile type'),
+    '#default_value' => 0,
+    '#options' => $profiles_options,
+    '#description' => t('The Profile2 type where the values should be imported.'),
+  ];
+
+  return $form;
+  
+}

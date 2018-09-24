@@ -1,0 +1,8 @@
+name = User Import Profile2
+description = Adds Profile2 fields to be available to the user import settings.
+core = 7.x
+package = Deployment
+
+dependencies[] = profile2
+dependencies[] = user_import
+
